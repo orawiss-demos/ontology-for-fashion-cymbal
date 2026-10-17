@@ -1,0 +1,67 @@
+[
+  {
+    "id": 1,
+    "question": "What is our return rate for Women's Outerwear?",
+    "expected_behavior": "Agent calls kc_search('return rate'), fetches context for return-rate glossary term, extracts SQL with standard exclusions (cancelled/test, internal, employee), filters product_category='Outerwear' AND department='Women', uses INTERVAL 90 DAY, executes via bq_execute, returns percentage",
+    "must_include_in_sql": [
+      "order_status NOT IN ('cancelled', 'test')",
+      "is_internal_order = FALSE",
+      "is_employee_purchase = FALSE",
+      "INTERVAL 90 DAY"
+    ],
+    "grounding_sources": ["return-rate"],
+    "category": "metric_with_filter"
+  },
+  {
+    "id": 2,
+    "question": "Show me sell-through rate by brand for the FW26 collection",
+    "expected_behavior": "Agent searches KC for sell-through, fetches context, generates SQL against inventory_movement table. Must exclude outlet warehouse and samples. Filters collection_season='FW26'. Uses INTERVAL 180 DAY or collection_season filter.",
+    "must_include_in_sql": [
+      "warehouse_code != 'OUTLET_WH'",
+      "is_sample = FALSE",
+      "collection_season"
+    ],
+    "grounding_sources": ["sell-through-rate"],
+    "category": "metric_with_dimension"
+  },
+  {
+    "id": 3,
+    "question": "What does outlet vs full-price classification mean?",
+    "expected_behavior": "Agent searches KC, fetches outlet-vs-fullprice OKF entry. Returns EXPLANATION (no SQL execution). Must mention all four conditions: channel=OUTLET, warehouse=OUTLET_WH, lifecycle=outlet, is_outlet_exclusive=TRUE. Must note that channel alone is not sufficient.",
+    "must_include_in_response": [
+      "sales_channel = 'OUTLET'",
+      "warehouse_code = 'OUTLET_WH'",
+      "product_lifecycle_stage",
+      "is_outlet_exclusive",
+      "alone is not sufficient"
+    ],
+    "grounding_sources": ["outlet-vs-fullprice"],
+    "category": "explanation"
+  },
+  {
+    "id": 4,
+    "question": "What is our average basket value for online orders?",
+    "expected_behavior": "Agent searches KC for average basket value, fetches context. Generates SQL against orders table (not order_items). Filters to the ONLINE channel (CNC may be included — it counts as ONLINE for revenue attribution). Must exclude cancelled/test/fraud, internal, employee, zero-value orders. Uses INTERVAL 30 DAY.",
+    "must_include_in_sql": [
+      "order_status NOT IN ('cancelled', 'test', 'fraud')",
+      "is_internal_order = FALSE",
+      "is_employee_purchase = FALSE",
+      "'ONLINE'",
+      "net_order_value > 0"
+    ],
+    "grounding_sources": ["average-basket-value"],
+    "category": "metric_with_channel"
+  },
+  {
+    "id": 5,
+    "question": "What is the return rate for outlet transactions only?",
+    "expected_behavior": "Agent must search for BOTH return-rate AND outlet-vs-fullprice. Must apply the four-condition outlet classification (not just channel='OUTLET'). Must apply standard return-rate exclusions. This tests cross-OKF-entry grounding.",
+    "must_include_in_sql": [
+      "order_status NOT IN ('cancelled', 'test')",
+      "is_internal_order = FALSE",
+      "sales_channel = 'OUTLET' OR warehouse_code = 'OUTLET_WH' OR"
+    ],
+    "grounding_sources": ["return-rate", "outlet-vs-fullprice"],
+    "category": "cross_entry_grounding"
+  }
+]
